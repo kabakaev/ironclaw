@@ -17,6 +17,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  fork-schedule-disabled:
+    name: Skip fork-only scheduled run
+    if: github.event_name == 'schedule' && github.repository != 'nearai/ironclaw'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Scheduled Codebase Graph refresh is disabled outside nearai/ironclaw."
+
   refresh:
     if: github.repository == 'nearai/ironclaw'
     runs-on: ubuntu-latest

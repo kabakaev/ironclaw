@@ -89,6 +89,13 @@ env:
   RUST_LOG: ironclaw=info
 
 jobs:
+  fork-schedule-disabled:
+    name: Skip fork-only scheduled run
+    if: github.event_name == 'schedule' && github.repository != 'nearai/ironclaw'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Scheduled Live Canary is disabled outside nearai/ironclaw."
+
   auth-smoke:
     name: Auth Smoke
     if: >
@@ -615,7 +622,7 @@ jobs:
     if: >
       always() &&
       (
-        (github.event_name == 'schedule' && github.event.schedule == '0 */3 * * *') ||
+        (github.event_name == 'schedule' && github.repository == 'nearai/ironclaw' && github.event.schedule == '0 */3 * * *') ||
         (github.event_name == 'workflow_dispatch' && (inputs.lane == 'all' || inputs.lane == 'reborn-webui-v2-live-qa'))
       ) &&
       (inputs.target_ref == '' || needs.approve-reborn-webui-v2-pr-live-qa.result == 'success')
@@ -652,7 +659,7 @@ jobs:
     if: >
       always() &&
       (
-        (github.event_name == 'schedule' && github.event.schedule == '0 */3 * * *') ||
+        (github.event_name == 'schedule' && github.repository == 'nearai/ironclaw' && github.event.schedule == '0 */3 * * *') ||
         (
           github.event_name == 'workflow_dispatch' &&
           (inputs.lane == 'all' || inputs.lane == 'reborn-webui-v2-live-qa') &&
@@ -851,7 +858,7 @@ jobs:
       always() &&
       needs.prepare-reborn-webui-v2-live-qa.result == 'success' &&
       (
-        (github.event_name == 'schedule' && github.event.schedule == '0 */3 * * *') ||
+        (github.event_name == 'schedule' && github.repository == 'nearai/ironclaw' && github.event.schedule == '0 */3 * * *') ||
         (github.event_name == 'workflow_dispatch' && (inputs.lane == 'all' || inputs.lane == 'reborn-webui-v2-live-qa'))
       )
     runs-on: ubuntu-latest
@@ -1483,7 +1490,7 @@ jobs:
         # whole canary run. Gated on schedule + workflow_dispatch only —
         # PR-triggered runs (if any) skip the post to keep noise out of
         # the channel.
-        if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+        if: ${{ (github.event_name == 'schedule' && github.repository == 'nearai/ironclaw') || (github.event_name == 'workflow_dispatch' && github.repository == 'nearai/ironclaw') }}
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

@@ -39,8 +39,16 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  fork-schedule-disabled:
+    name: Skip fork-only scheduled run
+    if: github.event_name == 'schedule' && github.repository != 'nearai/ironclaw'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Nightly Deep CI schedule is disabled outside nearai/ironclaw."
+
   platform-and-compat:
     name: Platform & Compat
+    if: github.event_name != 'schedule' || github.repository == 'nearai/ironclaw'
     uses: ./.github/workflows/platform-and-compat.yml
     # The called workflow's version-check job declares job-level
     # `pull-requests: read` + `issues: read`. A called workflow may not
@@ -59,6 +67,7 @@ jobs:
 
   reborn-tests:
     name: Reborn Tests
+    if: github.event_name != 'schedule' || github.repository == 'nearai/ironclaw'
     uses: ./.github/workflows/reborn-tests.yml
     # Two call-contract requirements, both validated at trigger time; a
     # violation turns the whole nightly run into a startup_failure with ZERO
@@ -87,6 +96,7 @@ jobs:
 
   reborn-e2e:
     name: Reborn E2E
+    if: github.event_name != 'schedule' || github.repository == 'nearai/ironclaw'
     uses: ./.github/workflows/reborn-e2e.yml
     with:
       ref: ${{ github.sha }}
@@ -101,6 +111,7 @@ jobs:
 
   mutation-frontier:
     name: Mutation frontier audit
+    if: github.event_name != 'schedule' || github.repository == 'nearai/ironclaw'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:

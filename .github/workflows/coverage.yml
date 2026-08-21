@@ -48,6 +48,7 @@ env:
 jobs:
   coverage:
     name: Coverage (${{ matrix.name }})
+    if: github.repository == 'nearai/ironclaw'
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
@@ -202,6 +203,7 @@ jobs:
 
   e2e-coverage:
     name: E2E Coverage
+    if: github.repository == 'nearai/ironclaw'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
@@ -393,7 +395,7 @@ jobs:
     name: Coverage
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: always()
+    if: always() && github.repository == 'nearai/ironclaw'
     needs: [coverage, e2e-coverage]
     steps:
       - name: Checkout repository

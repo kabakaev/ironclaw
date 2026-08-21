@@ -15,6 +15,7 @@ permissions:
 jobs:
   compile:
     name: ironclaw (Reborn, ${{ matrix.target }})
+    if: github.repository == 'nearai/ironclaw'
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 120
     strategy:

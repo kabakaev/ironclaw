@@ -13,8 +13,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  fork-schedule-disabled:
+    name: Skip fork-only scheduled run
+    if: github.event_name == 'schedule' && github.repository != 'nearai/ironclaw'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Scheduled Reborn Playwright is disabled outside nearai/ironclaw."
+
   matrix-config:
     name: Configure Reborn Playwright matrix
+    if: github.event_name != 'schedule' || github.repository == 'nearai/ironclaw'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -33,6 +41,7 @@ jobs:
 
   build:
     name: Build Reborn Playwright binaries
+    if: github.event_name != 'schedule' || github.repository == 'nearai/ironclaw'
     needs: matrix-config
     runs-on: ubuntu-latest
     timeout-minutes: 35
@@ -95,6 +104,7 @@ jobs:
 
   test:
     name: Reborn Playwright (${{ matrix.group }})
+    if: github.event_name != 'schedule' || github.repository == 'nearai/ironclaw'
     needs: [matrix-config, build]
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -167,7 +177,7 @@ jobs:
     name: Reborn Playwright
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: always()
+    if: ${{ (github.event_name != 'schedule' || github.repository == 'nearai/ironclaw') && always() }}
     needs: [test]
     steps:
       - name: Check Reborn Playwright shards

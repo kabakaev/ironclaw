@@ -25,8 +25,16 @@ permissions:
   actions: read
 
 jobs:
+  fork-schedule-disabled:
+    name: Skip fork-only scheduled run
+    if: github.event_name == 'schedule' && github.repository != 'nearai/ironclaw'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Nightly watchdog schedule is disabled outside nearai/ironclaw."
+
   check-nightly:
     name: Check ${{ matrix.workflow }}
+    if: github.event_name != 'schedule' || github.repository == 'nearai/ironclaw'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:

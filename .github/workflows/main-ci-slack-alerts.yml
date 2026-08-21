@@ -27,6 +27,7 @@ jobs:
   alert:
     name: Post Slack alert
     if: >-
+      github.repository == 'nearai/ironclaw' &&
       contains(fromJSON('["push","merge_group"]'), github.event.workflow_run.event) &&
       contains(fromJSON('["failure","timed_out","action_required","startup_failure"]'), github.event.workflow_run.conclusion)
     runs-on: ubuntu-latest

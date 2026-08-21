@@ -55,8 +55,16 @@ env:
   IMAGE_NAME: nearaidev/ironclaw
 
 jobs:
+  fork-schedule-disabled:
+    name: Skip fork-only scheduled run
+    if: github.event_name == 'schedule' && github.repository != 'nearai/ironclaw'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Scheduled Docker builds are disabled outside nearai/ironclaw."
+
   build:
     name: Build & Push
+    if: github.event_name != 'schedule' || github.repository == 'nearai/ironclaw'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
