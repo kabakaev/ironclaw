@@ -38,6 +38,7 @@ pub struct OpenAiCodexProvider {
     client: Client,
     stream_idle_timeout: Duration,
     model: String,
+    active_model: std::sync::RwLock<String>,
     api_base_url: String,
     auth: RwLock<AuthState>,
 }
@@ -65,6 +66,7 @@ impl OpenAiCodexProvider {
                 })?,
             stream_idle_timeout: Duration::from_secs(request_timeout_secs),
             model: model.to_string(),
+            active_model: std::sync::RwLock::new(model.to_string()),
             api_base_url: api_base_url.trim_end_matches('/').to_string(),
             auth: RwLock::new(AuthState {
                 token: token.to_string(),
@@ -151,8 +153,9 @@ impl OpenAiCodexProvider {
             .flat_map(|(i, m)| convert_message(m, i))
             .collect();
 
+        let model = self.active_model_name();
         let mut body = serde_json::json!({
-            "model": self.model,
+            "model": model,
             "store": false,
             "stream": true,
             "input": input,
@@ -164,7 +167,7 @@ impl OpenAiCodexProvider {
             body["text"]["format"] = format;
         }
 
-        if crate::reasoning_models::supports_openai_reasoning(&self.model) {
+        if crate::reasoning_models::supports_openai_reasoning(&model) {
             body["reasoning"] = crate::responses_reasoning::summary_request();
             body["include"] = serde_json::json!(["reasoning.encrypted_content"]);
         }
@@ -202,10 +205,11 @@ impl OpenAiCodexProvider {
     ) -> Result<ParsedResponse, LlmError> {
         let url = format!("{}/responses", self.api_base_url);
         let headers = self.build_headers().await?;
+        let model = self.active_model_name();
 
         tracing::debug!(
             url = %url,
-            model = %self.model,
+            model = %model,
             "Sending Responses API request"
         );
 
@@ -263,7 +267,7 @@ impl OpenAiCodexProvider {
             return Err(crate::error::map_provider_http_error(
                 crate::error::ProviderHttpError {
                     adapter: crate::error::ProductionModelAdapter::OpenAiCodex,
-                    model: &self.model,
+                    model: &model,
                     status: status.as_u16(),
                     body: body_text.as_ref(),
                     retry_after,
@@ -369,6 +373,13 @@ impl LlmProvider for OpenAiCodexProvider {
         &self.model
     }
 
+    fn active_model_name(&self) -> String {
+        match self.active_model.read() {
+            Ok(guard) => guard.clone(),
+            Err(poisoned) => poisoned.into_inner().clone(),
+        }
+    }
+
     fn cost_per_token(&self) -> (Decimal, Decimal) {
         (Decimal::ZERO, Decimal::ZERO)
     }
@@ -404,28 +415,38 @@ impl LlmProvider for OpenAiCodexProvider {
         self.complete_with_tools_inner(request, Some(sink)).await
     }
 
-    /// Returns empty — Codex uses subscription-based access with a fixed model,
-    /// no model enumeration API is available.
+    /// Returns common Codex models.
     async fn list_models(&self) -> Result<Vec<String>, LlmError> {
-        Ok(vec![])
+        Ok(vec!["gpt-5.4-mini".to_string(), "gpt-5.4".to_string()])
     }
 
     async fn model_metadata(&self) -> Result<ModelMetadata, LlmError> {
+        let model = self.active_model_name();
         Ok(ModelMetadata {
-            id: self.model.clone(),
+            id: model,
             context_length: None,
         })
     }
 
-    fn set_model(&self, _model: &str) -> Result<(), LlmError> {
-        Err(LlmError::RequestFailed {
-            provider: "openai_codex".to_string(),
-            reason: "Cannot change model on Codex provider at runtime".to_string(),
-        })
+    fn set_model(&self, model: &str) -> Result<(), LlmError> {
+        match self.active_model.write() {
+            Ok(mut guard) => {
+                *guard = model.to_string();
+            }
+            Err(poisoned) => {
+                *poisoned.into_inner() = model.to_string();
+            }
+        }
+        tracing::info!("Codex provider model switched to: {}", model);
+        Ok(())
     }
 
-    fn effective_model_name(&self, _requested_model: Option<&str>) -> String {
-        self.model.clone()
+    fn effective_model_name(&self, requested_model: Option<&str>) -> String {
+        if let Some(model) = requested_model {
+            model.to_string()
+        } else {
+            self.active_model_name()
+        }
     }
 }
 

@@ -441,10 +441,13 @@ impl LlmConfig {
     /// 2. `NEARAI_CHEAP_MODEL` (NearAI-only, backward compatibility)
     pub fn cheap_model_name(&self) -> Option<&str> {
         self.cheap_model.as_deref().or_else(|| {
-            if self.backend == "nearai" {
+            if self.backend == "nearai" || self.backend == "openai_codex" {
                 self.nearai.cheap_model.as_deref()
             } else {
-                None
+                self.nearai
+                    .cheap_model
+                    .as_deref()
+                    .filter(|m| m.ends_with(".gguf"))
             }
         })
     }

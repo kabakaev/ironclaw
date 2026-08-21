@@ -945,7 +945,7 @@ fn create_cheap_provider_for_backend(
     session: Arc<SessionManager>,
     cheap_model: &str,
 ) -> Result<Option<Arc<dyn LlmProvider>>, LlmError> {
-    if config.backend == "nearai" {
+    if config.backend == "nearai" || cheap_model.ends_with(".gguf") {
         let mut cheap_config = config.nearai.clone();
         cheap_config.model = cheap_model.to_string();
         let provider =
@@ -971,6 +971,14 @@ fn create_cheap_provider_for_backend(
         cheap_gemini_config.model = cheap_model.to_string();
         let provider = GeminiOauthProvider::new(cheap_gemini_config)?;
         return Ok(Some(Arc::new(provider)));
+    }
+
+    if config.backend == "openai_codex" {
+        let mut cheap_config = config.nearai.clone();
+        cheap_config.model = cheap_model.to_string();
+        let provider =
+            create_llm_provider_with_config(&cheap_config, session, config.request_timeout_secs)?;
+        return Ok(Some(provider));
     }
 
     // Registry-based provider: clone config and swap model
@@ -1763,11 +1771,23 @@ mod tests {
         config.nearai.cheap_model = Some("nearai".to_string());
         assert_eq!(config.cheap_model_name(), Some("nearai"));
 
-        // NearAI ignored for non-nearai backend
+        // NearAI fallback works for openai_codex
+        let mut config = test_llm_config();
+        config.backend = "openai_codex".to_string();
+        config.nearai.cheap_model = Some("nearai".to_string());
+        assert_eq!(config.cheap_model_name(), Some("nearai"));
+
+        // NearAI ignored for other non-nearai backends
         let mut config = test_llm_config();
         config.backend = "openai".to_string();
         config.nearai.cheap_model = Some("nearai".to_string());
         assert_eq!(config.cheap_model_name(), None);
+
+        // NearAI .gguf works for other backends
+        let mut config = test_llm_config();
+        config.backend = "openai".to_string();
+        config.nearai.cheap_model = Some("model.gguf".to_string());
+        assert_eq!(config.cheap_model_name(), Some("model.gguf"));
 
         // None when nothing configured
         let config = test_llm_config();
